@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Demonlist Progress Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+:root{
+  --bg:#0b0b0b;
+  --card:#1c1c1c;
+  --accent:#e54848;
+  --todo:#ffd24a;
+  --done:#3dff8a;
+  --attempt:#ff4c4c;
+  --hoverBtn:#ff7f50;
+  --hoverCard:#1a2aff;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:#eee;
+  font-family:Inter,Arial,sans-serif;
+}
+
+header{
+  padding:24px;
+  text-align:center;
+  font-size:2.2rem;
+  font-weight:800;
+  color:var(--accent);
+  background:#111;
+}
+
+#controls{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin:12px;
+  flex-wrap:wrap;
+}
+
+button{
+  padding:10px 16px;
+  border-radius:10px;
+  border:none;
+  font-weight:700;
+  cursor:pointer;
+  background:var(--accent);
+  color:#000;
+  transition:0.2s;
+}
+button:hover{
+  background:var(--hoverBtn);
+  transform:translateY(-2px);
+}
+
+#doneSorts, #ongoingSorts{
+  display:none;
+  gap:10px;
+  flex-wrap:wrap;
+  transition:all 0.3s ease;
+  overflow:hidden;
+  max-height:0;
+}
+#doneSorts.show, #ongoingSorts.show{
+  max-height:100px;
+}
+
+#search{
+  display:block;
+  margin:10px auto;
+  width:90%;
+  max-width:520px;
+  padding:12px;
+  border-radius:10px;
+  border:none;
+  background:#222;
+  color:white;
+}
+
+#demons{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:22px;
+  padding:22px;
+}
+
+.card{
+  background:var(--card);
+  border-radius:16px;
+  overflow:hidden;
+  border:1px solid #2a2a2a;
+  position:relative;
+  transition:0.2s;
+}
+.card:hover{
+  border-color:var(--hoverCard);
+  transform:translateY(-3px);
+}
+
+.card.done{
+  border:2px solid var(--done);
+  box-shadow:0 0 18px rgba(61,255,138,.35);
+}
+
+.card img{
+  width:100%;
+  aspect-ratio:16/9;
+  object-fit:cover;
+}
+
+.info{padding:16px;}
+.title{font-size:1.2rem;font-weight:800;}
+.creator{font-size:.85rem;color:#aaa;margin-bottom:10px;}
+
+.toggles{
+  display:flex;
+  gap:10px;
+}
+
+.toggle{
+  flex:1;
+  text-align:center;
+  padding:8px;
+  border-radius:8px;
+  background:#222;
+  cursor:pointer;
+  font-weight:700;
+  transition:0.2s;
+}
+.toggle:hover{background:#444;}
+.toggle.todo.active{background:var(--todo);color:#000;}
+.toggle.done.active{background:var(--done);color:#000;}
+.toggle.ongoing.active{background:#ff9f00;color:#000;}
+
+.stats{
+  margin-top:10px;
+  font-size:.9rem;
+}
+
+.stats input{
+  width:120px;
+  padding:8px;
+  margin-top:6px;
+  border-radius:8px;
+  border:none;
+  background:#222;
+  color:white;
+  font-weight:700;
+}
+
+.progressBarContainer{
+  background:#222;
+  border-radius:6px;
+  margin-top:6px;
+  height:12px;
+  overflow:hidden;
+}
+.progressBar{
+  height:100%;
+  width:0%;
+  background:var(--done);
+  transition:width 0.3s ease;
+}
+
+.badge{
+  position:absolute;
+  top:10px;
+  right:10px;
+  padding:6px 10px;
+  border-radius:8px;
+  font-weight:800;
+}
+
+.badge.todo{background:var(--todo);color:#000;}
+.badge.attempt{background:var(--attempt);color:white;}
+.badge.ongoing{background:#ff9f00;color:#000;}
+</style>
+</head>
+<body>
+
+<header>Demonlist Progress Tracker</header>
+
+<div id="controls">
+  <button onclick="setView('all')">Vue complète</button>
+  <button onclick="setView('roadmap')">Roadmap</button>
+  <button onclick="setView('done')">Terminés</button>
+  <button onclick="setView('ongoing')">En cours</button>
+
+  <div id="doneSorts">
+    <button onclick="setDoneSort('position')">🏆 Position</button>
+    <button onclick="setDoneSort('date')">🕒 Ordre de fin</button>
+    <button onclick="setDoneSort('attempts')">🔥 Attempts</button>
+  </div>
+
+  <div id="ongoingSorts">
+    <button onclick="setOngoingSort('position')">🏆 Position</button>
+    <button onclick="setOngoingSort('percent')">📊 % le plus haut</button>
+  </div>
+</div>
+
+<input id="search" placeholder="🔍 Rechercher un demon">
+
+<div id="demons"></div>
+
+<script>
+const STORAGE="demonlist_states";
+let states=JSON.parse(localStorage.getItem(STORAGE)||"{}");
+let demons=[];
+let view="all";
+let doneSort="position";
+let ongoingSort="position";
+
+const save=()=>localStorage.setItem(STORAGE,JSON.stringify(states));
+
+async function fetchDemons(){
+  const r=await fetch("https://pointercrate.com/api/v2/demons/listed/?page=0");
+  demons=await r.json();
+}
+
+function wiki(name){return "https://geometry-dash-fan.fandom.com/wiki/"+encodeURIComponent(name.replace(/ /g,"_"));}
+
+function setView(v){
+  view=v;
+  document.getElementById("doneSorts").classList.remove("show");
+  document.getElementById("ongoingSorts").classList.remove("show");
+  if(v==="done") document.getElementById("doneSorts").classList.add("show");
+  if(v==="ongoing") document.getElementById("ongoingSorts").classList.add("show");
+  render();
+}
+
+function setDoneSort(s){doneSort=s; render();}
+function setOngoingSort(s){ongoingSort=s; render();}
+
+function render(){
+  const c=document.getElementById("demons");
+  c.innerHTML="";
+  const q=document.getElementById("search").value.toLowerCase();
+
+  let list=[...demons];
+
+  if(view==="roadmap"){
+    list=list.filter(d=>states[d.id]?.todo).sort((a,b)=>states[a.id].order-states[b.id].order);
+  }
+
+  if(view==="done"){
+    list=list.filter(d=>states[d.id]?.done);
+    if(doneSort==="position") list.sort((a,b)=>a.position-b.position);
+    if(doneSort==="date") list.sort((a,b)=>states[a.id].doneAt-states[b.id].doneAt);
+    if(doneSort==="attempts") list.sort((a,b)=>(states[a.id].attempts||0)-(states[b.id].attempts||0));
+  }
+
+  if(view==="ongoing"){
+    list=list.filter(d=>states[d.id]?.ongoing);
+    if(ongoingSort==="position") list.sort((a,b)=>a.position-b.position);
+    if(ongoingSort==="percent") list.sort((a,b)=>(states[b.id].percent||0)-(states[a.id].percent||0));
+  }
+
+  if(view==="all") list=list.filter(d=>d.name.toLowerCase().includes(q));
+
+  list.forEach(d=>c.appendChild(createCard(d)));
+}
+
+function createCard(d){
+  const s=states[d.id]||{};
+  const card=document.createElement("div");
+  card.className="card"+(s.done?" done":"");
+  card.dataset.id=d.id;
+
+  card.innerHTML=`
+    <img src="${d.thumbnail||''}">
+    <div class="info">
+      <div class="title">#${d.position} — ${d.name}</div>
+      <div class="creator">Créateur : ${d.publisher?.name||"?"}</div>
+      <div class="toggles">
+        <div class="toggle todo ${s.todo?"active":""}">⏳ À faire</div>
+        <div class="toggle done ${s.done?"active":""}">✔ Fini</div>
+        <div class="toggle ongoing ${s.ongoing?"active":""}">🔄 En cours</div>
+      </div>
+      <div class="stats">
+      </div>
+    </div>
+  `;
+
+  const badge=document.createElement("div");
+  badge.className="badge";
+  card.appendChild(badge);
+
+  const todo=card.querySelector(".todo");
+  const done=card.querySelector(".done");
+  const ongoing=card.querySelector(".ongoing");
+  const stats=card.querySelector(".stats");
+
+  function updateStats(){
+    stats.innerHTML="";
+    if(s.done){
+      stats.innerHTML=`✔ TERMINÉ — voir Wiki<br>
+      <input type="number" placeholder="Attempts">`;
+      const input=stats.querySelector("input");
+      input.value=s.attempts||"";
+      input.oninput=()=>{s.attempts=parseInt(input.value)||null; save(); badge.textContent=s.attempts||"✔"; badge.className="badge attempt";};
+      badge.textContent=s.attempts||"✔";
+      badge.className="badge attempt";
+    }
+    else if(s.ongoing){
+      stats.innerHTML=`⏳ En cours — %<br>
+      <input type="number" placeholder="%">
+      <div class="progressBarContainer"><div class="progressBar"></div></div>`;
+      const input=stats.querySelector("input");
+      const bar=stats.querySelector(".progressBar");
+      input.value=s.percent||"";
+      bar.style.width=(s.percent||0)+"%";
+      input.oninput=()=>{s.percent=parseInt(input.value)||0; bar.style.width=s.percent+"%"; save(); badge.textContent=s.percent+"%"; badge.className="badge ongoing";};
+      badge.textContent=s.percent+"%";
+      badge.className="badge ongoing";
+    }
+    else if(s.todo){
+      stats.innerHTML=`⏳ À faire`;
+      badge.textContent=s.order;
+      badge.className="badge todo";
+    } else stats.innerHTML="";
+  }
+
+  todo.onclick=()=>{
+    s.todo = !s.todo;
+    if(s.todo){
+      const orders = Object.values(states).filter(x=>x.todo && Number.isInteger(x.order)).map(x=>x.order);
+      s.order = orders.length ? Math.max(...orders)+1 : 1;
+      delete s.done; delete s.attempts; delete s.ongoing; delete s.percent;
+    } else { delete s.order; }
+    states[d.id]=s; save(); updateStats(); render();
+  };
+
+  done.onclick=()=>{
+    if(!s.done){
+      s.done=true; s.doneAt=Date.now(); delete s.todo; delete s.order; delete s.ongoing; delete s.percent;
+    } else { delete s.done; delete s.attempts; delete s.doneAt; }
+    states[d.id]=s; save(); updateStats(); render();
+  };
+
+  ongoing.onclick=()=>{
+    if(!s.ongoing){
+      s.ongoing=true; delete s.done; delete s.todo; delete s.order; delete s.attempts;
+    } else { delete s.ongoing; delete s.percent; }
+    states[d.id]=s; save(); updateStats(); render();
+  };
+
+  card.querySelector("img").onclick=()=>window.open(wiki(d.name),"_blank");
+
+  updateStats();
+  return card;
+}
+
+document.getElementById("search").oninput=render;
+fetchDemons().then(render);
+</script>
+
+</body>
+</html>
