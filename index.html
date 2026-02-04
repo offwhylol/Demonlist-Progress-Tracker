@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Demonlist Progress Tracker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 :root{
   --bg:#0b0b0b;
@@ -48,7 +49,7 @@ button{
   cursor:pointer;
   background:var(--accent);
   color:#000;
-  transition:0.2s;
+  transition:.2s;
 }
 button:hover{
   background:var(--hoverBtn);
@@ -59,11 +60,11 @@ button:hover{
   display:none;
   gap:10px;
   flex-wrap:wrap;
-  transition:all 0.3s ease;
-  overflow:hidden;
   max-height:0;
+  overflow:hidden;
 }
 #doneSorts.show, #ongoingSorts.show{
+  display:flex;
   max-height:100px;
 }
 
@@ -92,13 +93,12 @@ button:hover{
   overflow:hidden;
   border:1px solid #2a2a2a;
   position:relative;
-  transition:0.2s;
+  transition:.2s;
 }
 .card:hover{
   border-color:var(--hoverCard);
   transform:translateY(-3px);
 }
-
 .card.done{
   border:2px solid var(--done);
   box-shadow:0 0 18px rgba(61,255,138,.35);
@@ -108,6 +108,7 @@ button:hover{
   width:100%;
   aspect-ratio:16/9;
   object-fit:cover;
+  cursor:pointer;
 }
 
 .info{padding:16px;}
@@ -118,7 +119,6 @@ button:hover{
   display:flex;
   gap:10px;
 }
-
 .toggle{
   flex:1;
   text-align:center;
@@ -127,7 +127,7 @@ button:hover{
   background:#222;
   cursor:pointer;
   font-weight:700;
-  transition:0.2s;
+  transition:.2s;
 }
 .toggle:hover{background:#444;}
 .toggle.todo.active{background:var(--todo);color:#000;}
@@ -161,7 +161,7 @@ button:hover{
   height:100%;
   width:0%;
   background:var(--done);
-  transition:width 0.3s ease;
+  transition:width .3s ease;
 }
 
 .badge{
@@ -172,7 +172,6 @@ button:hover{
   border-radius:8px;
   font-weight:800;
 }
-
 .badge.todo{background:var(--todo);color:#000;}
 .badge.attempt{background:var(--attempt);color:white;}
 .badge.ongoing{background:#ff9f00;color:#000;}
@@ -183,24 +182,24 @@ button:hover{
 <header>Demonlist Progress Tracker</header>
 
 <div id="controls">
-  <button onclick="setView('all')">Vue complète</button>
+  <button onclick="setView('all')">Full list</button>
   <button onclick="setView('roadmap')">Roadmap</button>
-  <button onclick="setView('done')">Terminés</button>
-  <button onclick="setView('ongoing')">En cours</button>
+  <button onclick="setView('done')">Completed</button>
+  <button onclick="setView('ongoing')">In progress</button>
 
   <div id="doneSorts">
     <button onclick="setDoneSort('position')">🏆 Position</button>
-    <button onclick="setDoneSort('date')">🕒 Ordre de fin</button>
+    <button onclick="setDoneSort('date')">🕒 Completion order</button>
     <button onclick="setDoneSort('attempts')">🔥 Attempts</button>
   </div>
 
   <div id="ongoingSorts">
     <button onclick="setOngoingSort('position')">🏆 Position</button>
-    <button onclick="setOngoingSort('percent')">📊 % le plus haut</button>
+    <button onclick="setOngoingSort('percent')">📊 Highest %</button>
   </div>
 </div>
 
-<input id="search" placeholder="🔍 Rechercher un demon">
+<input id="search" placeholder="🔍 Search a demon">
 
 <div id="demons"></div>
 
@@ -219,7 +218,9 @@ async function fetchDemons(){
   demons=await r.json();
 }
 
-function wiki(name){return "https://geometry-dash-fan.fandom.com/wiki/"+encodeURIComponent(name.replace(/ /g,"_"));}
+function wiki(name){
+  return "https://geometry-dash-fan.fandom.com/wiki/"+encodeURIComponent(name.replace(/ /g,"_"));
+}
 
 function setView(v){
   view=v;
@@ -241,7 +242,8 @@ function render(){
   let list=[...demons];
 
   if(view==="roadmap"){
-    list=list.filter(d=>states[d.id]?.todo).sort((a,b)=>states[a.id].order-states[b.id].order);
+    list=list.filter(d=>states[d.id]?.todo)
+             .sort((a,b)=>states[a.id].order-states[b.id].order);
   }
 
   if(view==="done"){
@@ -266,20 +268,18 @@ function createCard(d){
   const s=states[d.id]||{};
   const card=document.createElement("div");
   card.className="card"+(s.done?" done":"");
-  card.dataset.id=d.id;
 
   card.innerHTML=`
     <img src="${d.thumbnail||''}">
     <div class="info">
       <div class="title">#${d.position} — ${d.name}</div>
-      <div class="creator">Créateur : ${d.publisher?.name||"?"}</div>
+      <div class="creator">Creator: ${d.publisher?.name||"?"}</div>
       <div class="toggles">
-        <div class="toggle todo ${s.todo?"active":""}">⏳ À faire</div>
-        <div class="toggle done ${s.done?"active":""}">✔ Fini</div>
-        <div class="toggle ongoing ${s.ongoing?"active":""}">🔄 En cours</div>
+        <div class="toggle todo ${s.todo?"active":""}">⏳ To do</div>
+        <div class="toggle done ${s.done?"active":""}">✔ Completed</div>
+        <div class="toggle ongoing ${s.ongoing?"active":""}">🔄 In progress</div>
       </div>
-      <div class="stats">
-      </div>
+      <div class="stats"></div>
     </div>
   `;
 
@@ -295,55 +295,57 @@ function createCard(d){
   function updateStats(){
     stats.innerHTML="";
     if(s.done){
-      stats.innerHTML=`✔ TERMINÉ — voir Wiki<br>
-      <input type="number" placeholder="Attempts">`;
+      stats.innerHTML=`✔ COMPLETED — View Wiki<br><input type="number" placeholder="Attempts">`;
       const input=stats.querySelector("input");
       input.value=s.attempts||"";
-      input.oninput=()=>{s.attempts=parseInt(input.value)||null; save(); badge.textContent=s.attempts||"✔"; badge.className="badge attempt";};
+      input.oninput=()=>{s.attempts=parseInt(input.value)||null; save(); badge.textContent=s.attempts||"✔";};
       badge.textContent=s.attempts||"✔";
       badge.className="badge attempt";
     }
     else if(s.ongoing){
-      stats.innerHTML=`⏳ En cours — %<br>
-      <input type="number" placeholder="%">
+      stats.innerHTML=`🔄 In progress — %<br><input type="number" placeholder="%">
       <div class="progressBarContainer"><div class="progressBar"></div></div>`;
       const input=stats.querySelector("input");
       const bar=stats.querySelector(".progressBar");
       input.value=s.percent||"";
       bar.style.width=(s.percent||0)+"%";
-      input.oninput=()=>{s.percent=parseInt(input.value)||0; bar.style.width=s.percent+"%"; save(); badge.textContent=s.percent+"%"; badge.className="badge ongoing";};
+      input.oninput=()=>{s.percent=parseInt(input.value)||0; bar.style.width=s.percent+"%"; save(); badge.textContent=s.percent+"%";};
       badge.textContent=s.percent+"%";
       badge.className="badge ongoing";
     }
     else if(s.todo){
-      stats.innerHTML=`⏳ À faire`;
+      stats.innerHTML="⏳ To do";
       badge.textContent=s.order;
       badge.className="badge todo";
-    } else stats.innerHTML="";
+    } else {
+      badge.textContent="";
+    }
   }
 
   todo.onclick=()=>{
-    s.todo = !s.todo;
+    s.todo=!s.todo;
     if(s.todo){
-      const orders = Object.values(states).filter(x=>x.todo && Number.isInteger(x.order)).map(x=>x.order);
-      s.order = orders.length ? Math.max(...orders)+1 : 1;
+      const orders=Object.values(states).filter(x=>x.todo).map(x=>x.order||0);
+      s.order=orders.length?Math.max(...orders)+1:1;
       delete s.done; delete s.attempts; delete s.ongoing; delete s.percent;
-    } else { delete s.order; }
-    states[d.id]=s; save(); updateStats(); render();
+    } else delete s.order;
+    states[d.id]=s; save(); render();
   };
 
   done.onclick=()=>{
     if(!s.done){
-      s.done=true; s.doneAt=Date.now(); delete s.todo; delete s.order; delete s.ongoing; delete s.percent;
-    } else { delete s.done; delete s.attempts; delete s.doneAt; }
-    states[d.id]=s; save(); updateStats(); render();
+      s.done=true; s.doneAt=Date.now();
+      delete s.todo; delete s.order; delete s.ongoing; delete s.percent;
+    } else {delete s.done; delete s.attempts; delete s.doneAt;}
+    states[d.id]=s; save(); render();
   };
 
   ongoing.onclick=()=>{
     if(!s.ongoing){
-      s.ongoing=true; delete s.done; delete s.todo; delete s.order; delete s.attempts;
-    } else { delete s.ongoing; delete s.percent; }
-    states[d.id]=s; save(); updateStats(); render();
+      s.ongoing=true;
+      delete s.done; delete s.todo; delete s.order; delete s.attempts;
+    } else delete s.percent, delete s.ongoing;
+    states[d.id]=s; save(); render();
   };
 
   card.querySelector("img").onclick=()=>window.open(wiki(d.name),"_blank");
